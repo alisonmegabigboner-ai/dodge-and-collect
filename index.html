@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dodge & Collect</title>
+  <style>
+    html, body { margin:0; height:100%; background:#0b1020; }
+    canvas { display:block; margin:0 auto; background:#0f1733; }
+    .hud {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      top: 10px; color: #e8ecff; font: 16px system-ui;
+      background: rgba(0,0,0,.35); padding: 8px 12px; border-radius: 10px;
+    }
+    .hud b { color: #ffd84a; }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    Score: <b id="score">0</b> | Best: <b id="best">0</b> | Move: WASD / Arrows
+  </div>
+  <canvas id="c" width="900" height="550"></canvas>
+
+<script>
+(() => {
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = document.getElementById("score");
+  const bestEl = document.getElementById("best");
+
+  let best = Number(localStorage.getItem("bestScore") || 0);
+  bestEl.textContent = best;
+
+  const keys = new Set();
+  addEventListener("keydown", e => keys.add(e.key.toLowerCase()));
+  addEventListener("keyup", e => keys.delete(e.key.toLowerCase()));
+
+  const rand = (a,b)=>Math.random()*(b-a)+a;
+
+  const player = { x:450, y:275, r:14, vx:0, vy:0 };
+  const star = { x:200, y:200, r:10 };
+  const enemies = [];
+  let score = 0;
+  let over = false;
+
+  function spawnEnemy(){
+    enemies.push({ x:rand(0,900), y:rand(0,550), r:14 });
+  }
+
+  spawnEnemy();
+
+  function update(){
+    if(over) return;
+
+    if(keys.has("a")||keys.has("arrowleft")) player.vx=-4;
+    else if(keys.has("d")||keys.has("arrowright")) player.vx=4;
+    else player.vx=0;
+
+    if(keys.has("w")||keys.has("arrowup")) player.vy=-4;
+    else if(keys.has("s")||keys.has("arrowdown")) player.vy=4;
+    else player.vy=0;
+
+    player.x+=player.vx;
+    player.y+=player.vy;
+
+    player.x=Math.max(player.r,Math.min(900-player.r,player.x));
+    player.y=Math.max(player.r,Math.min(550-player.r,player.y));
+
+    if(Math.hypot(player.x-star.x,player.y-star.y)<player.r+star.r){
+      score++;
+      scoreEl.textContent=score;
+      star.x=rand(20,880);
+      star.y=rand(20,530);
+      spawnEnemy();
+    }
+
+    for(const e of enemies){
+      const dx=player.x-e.x, dy=player.y-e.y;
+      const d=Math.hypot(dx,dy);
+      e.x+=dx/d*2; e.y+=dy/d*2;
+      if(d<player.r+e.r){
+        over=true;
+        best=Math.max(best,score);
+        localStorage.setItem("bestScore",best);
+        bestEl.textContent=best;
+      }
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,900,550);
+
+    ctx.fillStyle="#ffd84a";
+    ctx.beginPath(); ctx.arc(star.x,star.y,star.r,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle="#6ee7ff";
+    ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle="#ff4d6d";
+    for(const e of enemies){
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.fill();
+    }
+
+    if(over){
+      ctx.fillStyle="rgba(0,0,0,.6)";
+      ctx.fillRect(0,0,900,550);
+      ctx.fillStyle="#fff";
+      ctx.font="40px sans-serif";
+      ctx.fillText("GAME OVER",320,260);
+    }
+  }
+
+  function loop(){
+    update(); draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
